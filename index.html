@@ -399,7 +399,10 @@ body {
   <div class="section">
     <div class="section-header">
       <h2>Measurements</h2>
-      <button class="add-btn" onclick="openModal('measurements')" style="background:var(--accent2)">Log</button>
+      <div>
+        <button class="add-btn" onclick="openModal('chart')" style="background:var(--accent2);margin-right:6px">Graph</button>
+        <button class="add-btn" onclick="openModal('measurements')" style="background:var(--accent2)">Log</button>
+      </div>
     </div>
     <div class="measurements-grid" id="measureGrid">
       <div class="measure-card">
@@ -463,6 +466,22 @@ body {
     <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
     Settings
   </button>
+</div>
+
+<!-- MODAL: WEIGHT CHART -->
+<div class="modal-overlay" id="modalChart">
+  <div class="modal" style="height:70vh;display:flex;flex-direction:column;">
+    <h3>Weight Over Time</h3>
+    <div style="display:flex;gap:8px;justify-content:center;margin-bottom:12px;">
+      <button class="add-btn" style="padding:4px 12px;font-size:12px;" onclick="drawChart('30')">30d</button>
+      <button class="add-btn" style="padding:4px 12px;font-size:12px;" onclick="drawChart('90')">90d</button>
+      <button class="add-btn" style="padding:4px 12px;font-size:12px;" onclick="drawChart('all')">All</button>
+    </div>
+    <canvas id="weightChart" style="flex:1;width:100%;"></canvas>
+    <div class="modal-actions" style="margin-top:12px;">
+      <button class="btn-cancel" onclick="closeModal('modalChart')" style="flex:1">Close</button>
+    </div>
+  </div>
 </div>
 
 <!-- MODAL: ADD FOOD -->
@@ -974,6 +993,113 @@ function exportData() {
   a.click();
 }
 
+// ── Weight Chart ──
+function drawChart(range) {
+  const all = getData('days');
+  const isImperial = settings.units === 'imperial';
+
+  // Collect all dates with weight data
+  let entries = Object.keys(all)
+    .filter(k => all[k].measurements && all[k].measurements.weight)
+    .sort()
+    .map(k => ({
+      date: k,
+      weight: isImperial ? all[k].measurements.weight * 2.205 : all[k].measurements.weight
+    }));
+
+  if (range !== 'all') {
+    const days = parseInt(range);
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const cutoffStr = dateKey(cutoff);
+    entries = entries.filter(e => e.date >= cutoffStr);
+  }
+
+  const canvas = document.getElementById('weightChart');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = canvas.offsetWidth * dpr;
+  canvas.height = canvas.offsetHeight * dpr;
+  ctx.scale(dpr, dpr);
+  const W = canvas.offsetWidth;
+  const H = canvas.offsetHeight;
+
+  ctx.clearRect(0, 0, W, H);
+
+  if (entries.length < 2) {
+    ctx.fillStyle = '#999';
+    ctx.font = '14px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Need at least 2 days of weight data', W / 2, H / 2);
+    return;
+  }
+
+  const weights = entries.map(e => e.weight);
+  const minW = Math.min(...weights);
+  const maxW = Math.max(...weights);
+  const padding = { top: 20, right: 16, bottom: 40, left: 46 };
+  const chartW = W - padding.left - padding.right;
+  const chartH = H - padding.top - padding.bottom;
+  const range_w = maxW === minW ? 2 : maxW - minW;
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+  ctx.lineWidth = 1;
+  const gridLines = 5;
+  ctx.font = '11px -apple-system, sans-serif';
+  ctx.fillStyle = '#999';
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= gridLines; i++) {
+    const y = padding.top + (chartH / gridLines) * i;
+    const val = maxW - (range_w / gridLines) * i;
+    ctx.beginPath();
+    ctx.moveTo(padding.left, y);
+    ctx.lineTo(W - padding.right, y);
+    ctx.stroke();
+    ctx.fillText(val.toFixed(1), padding.left - 6, y + 4);
+  }
+
+  // Date labels
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#999';
+  const labelCount = Math.min(entries.length, 5);
+  for (let i = 0; i < labelCount; i++) {
+    const idx = Math.round((i / (labelCount - 1)) * (entries.length - 1));
+    const x = padding.left + (idx / (entries.length - 1)) * chartW;
+    const d = entries[idx].date.substring(5); // MM-DD
+    ctx.fillText(d, x, H - padding.bottom + 18);
+  }
+
+  // Line
+  ctx.beginPath();
+  ctx.strokeStyle = '#e94560';
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  entries.forEach((e, i) => {
+    const x = padding.left + (i / (entries.length - 1)) * chartW;
+    const y = padding.top + chartH - ((e.weight - minW) / range_w) * chartH;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Dots
+  ctx.fillStyle = '#e94560';
+  entries.forEach((e, i) => {
+    const x = padding.left + (i / (entries.length - 1)) * chartW;
+    const y = padding.top + chartH - ((e.weight - minW) / range_w) * chartH;
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // Unit label
+  ctx.fillStyle = '#666';
+  ctx.font = '10px -apple-system, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(isImperial ? 'lbs' : 'kg', padding.left, padding.top - 6);
+}
+
 // ── Navigation ──
 function showPage(id, btn) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -995,6 +1121,10 @@ function openModal(type) {
   else if (type === 'measurements') {
     updateUnitLabels();
     document.getElementById('modalMeasurements').classList.add('show');
+  }
+  else if (type === 'chart') {
+    document.getElementById('modalChart').classList.add('show');
+    setTimeout(() => drawChart('all'), 50);
   }
 }
 
