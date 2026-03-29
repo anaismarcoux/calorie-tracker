@@ -344,6 +344,68 @@ body {
 }
 
 .cal-preview strong { color: var(--accent); font-size: 18px; }
+
+/* My Foods page */
+.tab-bar {
+  display: flex;
+  gap: 0;
+  margin-bottom: 12px;
+}
+.tab-bar button {
+  flex: 1;
+  padding: 10px;
+  background: var(--card);
+  border: none;
+  color: var(--text2);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tab-bar button.active { color: var(--accent); border-bottom: 2px solid var(--accent); }
+
+.food-item {
+  background: var(--card);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.food-item .fi-info { flex: 1; }
+.food-item .fi-name { font-size: 14px; font-weight: 500; }
+.food-item .fi-detail { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.food-item .fi-actions { display: flex; gap: 4px; }
+.food-item .fi-actions button {
+  background: none;
+  border: none;
+  color: var(--text2);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
+/* Recipe ingredient list in modal */
+.ingredient-list { margin-bottom: 8px; }
+.ingredient-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 13px;
+}
+.ingredient-row .ir-name { flex: 1; }
+.ingredient-row .ir-g { color: var(--text2); }
+.ingredient-row .ir-cal { color: var(--accent); min-width: 60px; text-align: right; }
+.ingredient-row .ir-del { background: none; border: none; color: var(--text2); cursor: pointer; font-size: 16px; }
+.ingredient-total {
+  padding: 8px 0;
+  font-size: 13px;
+  color: var(--text2);
+  text-align: right;
+  font-weight: 600;
+}
 </style>
 </head>
 <body>
@@ -432,6 +494,32 @@ body {
   </div>
 </div>
 
+<!-- PAGE: MY FOODS -->
+<div class="page" id="pageMyFoods">
+  <div class="section" style="margin-top:16px">
+    <div class="tab-bar">
+      <button class="active" onclick="switchMyFoodsTab('custom', this)">Custom Foods</button>
+      <button onclick="switchMyFoodsTab('recipes', this)">Recipes</button>
+    </div>
+
+    <div id="tabCustom">
+      <div class="section-header">
+        <h2>Custom Foods</h2>
+        <button class="add-btn" onclick="openModal('customFood')">+ Add</button>
+      </div>
+      <div id="customFoodList"></div>
+    </div>
+
+    <div id="tabRecipes" style="display:none">
+      <div class="section-header">
+        <h2>Recipes</h2>
+        <button class="add-btn" onclick="openModal('recipe')">+ Add</button>
+      </div>
+      <div id="recipeList"></div>
+    </div>
+  </div>
+</div>
+
 <!-- PAGE: SETTINGS -->
 <div class="page" id="pageSettings">
   <div class="section" style="margin-top:16px">
@@ -458,6 +546,10 @@ body {
     <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
     Today
   </button>
+  <button class="nav-btn" onclick="showPage('pageMyFoods', this)">
+    <svg viewBox="0 0 24 24"><path d="M8.1 13.34l2.83-2.83L3.91 3.5a4.008 4.008 0 000 5.66l4.19 4.18zm6.78-1.81c1.53.71 3.68.21 5.27-1.38 1.91-1.91 2.28-4.65.81-6.12-1.46-1.46-4.2-1.1-6.12.81-1.59 1.59-2.09 3.74-1.38 5.27L3.7 19.87l1.41 1.41L12 14.41l6.88 6.88 1.41-1.41L13.41 13l1.47-1.47z"/></svg>
+    My Foods
+  </button>
   <button class="nav-btn" onclick="showPage('pageHistory', this)">
     <svg viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
     History
@@ -466,6 +558,62 @@ body {
     <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
     Settings
   </button>
+</div>
+
+<!-- MODAL: ADD CUSTOM FOOD -->
+<div class="modal-overlay" id="modalCustomFood">
+  <div class="modal">
+    <h3>Add Custom Food</h3>
+    <div class="form-group">
+      <label>Food name</label>
+      <input type="text" id="cfName" placeholder="e.g. Mom's cookies">
+    </div>
+    <div class="form-group">
+      <label>Calories per 100g</label>
+      <input type="number" id="cfCal" inputmode="decimal" placeholder="e.g. 450">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modalCustomFood')">Cancel</button>
+      <button class="btn-save" onclick="saveCustomFood()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ADD RECIPE -->
+<div class="modal-overlay" id="modalRecipe">
+  <div class="modal" style="max-height:85vh;display:flex;flex-direction:column;">
+    <h3 id="recipeModalTitle">Add Recipe</h3>
+    <div style="flex:1;overflow-y:auto;">
+      <div class="form-group">
+        <label>Recipe name</label>
+        <input type="text" id="recipeName" placeholder="e.g. Chicken stir fry">
+      </div>
+
+      <label style="font-size:13px;color:var(--text2);display:block;margin-bottom:4px;">Ingredients</label>
+      <div class="ingredient-list" id="ingredientList"></div>
+      <div id="ingredientTotal" class="ingredient-total"></div>
+
+      <div style="background:var(--bg);border-radius:8px;padding:10px;margin-bottom:14px;">
+        <div class="form-group search-wrap" style="margin-bottom:8px;">
+          <input type="text" id="ingSearch" placeholder="Search ingredient..." autocomplete="off" style="font-size:14px;">
+          <div class="search-results" id="ingSearchResults"></div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <input type="number" id="ingWeight" inputmode="decimal" placeholder="Grams" style="flex:1;padding:8px;background:var(--card);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:var(--text);font-size:14px;">
+          <button class="add-btn" style="font-size:13px;" onclick="addIngredient()">+ Add</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Total recipe weight after cooking (g)</label>
+        <input type="number" id="recipeTotalWeight" inputmode="decimal" placeholder="e.g. 800">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modalRecipe')">Cancel</button>
+      <button class="btn-save" onclick="saveRecipe()">Save Recipe</button>
+    </div>
+  </div>
 </div>
 
 <!-- MODAL: WEIGHT LOG -->
@@ -800,8 +948,11 @@ foodNameInput.addEventListener('input', function() {
     return;
   }
 
-  // Search local DB first
-  const localResults = FOOD_DB.filter(f => f.name.toLowerCase().includes(q)).slice(0, 5);
+  // Search custom foods, recipes, then built-in DB
+  const customFoods = getCustomFoods();
+  const recipes = getRecipes().map(r => ({ name: r.name + ' (recipe)', cal: r.calPer100 }));
+  const allFoods = [...customFoods, ...recipes, ...FOOD_DB];
+  const localResults = allFoods.filter(f => f.name.toLowerCase().includes(q)).slice(0, 5);
   showSearchResults(localResults, q);
 });
 
@@ -1042,6 +1193,210 @@ function exportData() {
   a.click();
 }
 
+// ── Custom Foods ──
+function getCustomFoods() {
+  return JSON.parse(localStorage.getItem('ct_customFoods') || '[]');
+}
+function saveCustomFoods(arr) {
+  localStorage.setItem('ct_customFoods', JSON.stringify(arr));
+}
+
+function saveCustomFood() {
+  const name = document.getElementById('cfName').value.trim();
+  const cal = parseFloat(document.getElementById('cfCal').value) || 0;
+  if (!name || !cal) return;
+
+  const foods = getCustomFoods();
+  foods.push({ name, cal });
+  saveCustomFoods(foods);
+  closeModal('modalCustomFood');
+  document.getElementById('cfName').value = '';
+  document.getElementById('cfCal').value = '';
+  renderMyFoods();
+}
+
+function deleteCustomFood(i) {
+  const foods = getCustomFoods();
+  foods.splice(i, 1);
+  saveCustomFoods(foods);
+  renderMyFoods();
+}
+
+function renderMyFoods() {
+  const foods = getCustomFoods();
+  const list = document.getElementById('customFoodList');
+  if (foods.length === 0) {
+    list.innerHTML = '<div class="empty">No custom foods yet. Tap + Add to create one.</div>';
+  } else {
+    list.innerHTML = foods.map((f, i) => `
+      <div class="food-item">
+        <div class="fi-info">
+          <div class="fi-name">${esc(f.name)}</div>
+          <div class="fi-detail">${f.cal} kcal / 100g</div>
+        </div>
+        <div class="fi-actions">
+          <button onclick="deleteCustomFood(${i})">&times;</button>
+        </div>
+      </div>
+    `).join('');
+  }
+}
+
+// ── Recipes ──
+function getRecipes() {
+  return JSON.parse(localStorage.getItem('ct_recipes') || '[]');
+}
+function saveRecipes(arr) {
+  localStorage.setItem('ct_recipes', JSON.stringify(arr));
+}
+
+let recipeIngredients = [];
+let selectedIngredient = null;
+
+function renderIngredientList() {
+  const list = document.getElementById('ingredientList');
+  const totalEl = document.getElementById('ingredientTotal');
+
+  if (recipeIngredients.length === 0) {
+    list.innerHTML = '<div class="empty" style="padding:8px">No ingredients added yet</div>';
+    totalEl.innerHTML = '';
+    return;
+  }
+
+  const totalCals = recipeIngredients.reduce((s, ing) => s + ing.cals, 0);
+  list.innerHTML = recipeIngredients.map((ing, i) => `
+    <div class="ingredient-row">
+      <span class="ir-name">${esc(ing.name)}</span>
+      <span class="ir-g">${ing.weight}g</span>
+      <span class="ir-cal">${Math.round(ing.cals)} kcal</span>
+      <button class="ir-del" onclick="removeIngredient(${i})">&times;</button>
+    </div>
+  `).join('');
+  totalEl.innerHTML = `Total: ${Math.round(totalCals)} kcal`;
+}
+
+function removeIngredient(i) {
+  recipeIngredients.splice(i, 1);
+  renderIngredientList();
+}
+
+// Ingredient search
+const ingSearchInput = document.getElementById('ingSearch');
+const ingSearchResults = document.getElementById('ingSearchResults');
+
+ingSearchInput.addEventListener('input', function() {
+  const q = this.value.trim().toLowerCase();
+  selectedIngredient = null;
+  if (q.length < 2) { ingSearchResults.classList.remove('show'); return; }
+
+  const customFoods = getCustomFoods();
+  const allFoods = [...customFoods, ...FOOD_DB];
+  const results = allFoods.filter(f => f.name.toLowerCase().includes(q)).slice(0, 6);
+
+  if (results.length === 0) {
+    ingSearchResults.innerHTML = '<div class="search-loading">No match. Search online or add as custom food first.</div>';
+  } else {
+    ingSearchResults.innerHTML = results.map(f =>
+      `<div class="search-item" onclick="selectIngredient('${esc(f.name)}', ${f.cal})">
+        <span class="s-name">${esc(f.name)}</span>
+        <span class="s-cal">${f.cal} kcal/100g</span>
+      </div>`
+    ).join('');
+  }
+  ingSearchResults.classList.add('show');
+});
+
+function selectIngredient(name, cal) {
+  selectedIngredient = { name, cal };
+  ingSearchInput.value = name;
+  ingSearchResults.classList.remove('show');
+  document.getElementById('ingWeight').focus();
+}
+
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#modalRecipe .search-wrap')) {
+    ingSearchResults.classList.remove('show');
+  }
+});
+
+function addIngredient() {
+  if (!selectedIngredient) return;
+  const weight = parseFloat(document.getElementById('ingWeight').value) || 0;
+  if (!weight) return;
+
+  const cals = (selectedIngredient.cal / 100) * weight;
+  recipeIngredients.push({
+    name: selectedIngredient.name,
+    weight,
+    calPer100: selectedIngredient.cal,
+    cals
+  });
+
+  ingSearchInput.value = '';
+  document.getElementById('ingWeight').value = '';
+  selectedIngredient = null;
+  renderIngredientList();
+}
+
+function saveRecipe() {
+  const name = document.getElementById('recipeName').value.trim();
+  const totalWeight = parseFloat(document.getElementById('recipeTotalWeight').value) || 0;
+  if (!name || recipeIngredients.length === 0 || !totalWeight) return;
+
+  const totalCals = recipeIngredients.reduce((s, ing) => s + ing.cals, 0);
+  const calPer100 = Math.round((totalCals / totalWeight) * 100);
+
+  const recipes = getRecipes();
+  recipes.push({
+    name,
+    ingredients: [...recipeIngredients],
+    totalWeight,
+    totalCals: Math.round(totalCals),
+    calPer100
+  });
+  saveRecipes(recipes);
+  closeModal('modalRecipe');
+  document.getElementById('recipeName').value = '';
+  document.getElementById('recipeTotalWeight').value = '';
+  recipeIngredients = [];
+  renderIngredientList();
+  renderRecipeList();
+}
+
+function deleteRecipe(i) {
+  const recipes = getRecipes();
+  recipes.splice(i, 1);
+  saveRecipes(recipes);
+  renderRecipeList();
+}
+
+function renderRecipeList() {
+  const recipes = getRecipes();
+  const list = document.getElementById('recipeList');
+  if (recipes.length === 0) {
+    list.innerHTML = '<div class="empty">No recipes yet. Tap + Add to create one.</div>';
+  } else {
+    list.innerHTML = recipes.map((r, i) => `
+      <div class="food-item">
+        <div class="fi-info">
+          <div class="fi-name">${esc(r.name)}</div>
+          <div class="fi-detail">${r.calPer100} kcal/100g | ${r.ingredients.length} ingredients | ${r.totalWeight}g total</div>
+        </div>
+        <div class="fi-actions">
+          <button onclick="deleteRecipe(${i})">&times;</button>
+        </div>
+      </div>
+    `).join('');
+  }
+}
+
+function switchMyFoodsTab(tab, btn) {
+  document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tabCustom').style.display = tab === 'custom' ? 'block' : 'none';
+  document.getElementById('tabRecipes').style.display = tab === 'recipes' ? 'block' : 'none';
+}
+
 // ── Weight Log ──
 function renderWeightLog() {
   const all = getData('days');
@@ -1093,6 +1448,7 @@ function showPage(id, btn) {
 
   if (id === 'pageHistory') renderHistory();
   if (id === 'pageSettings') loadSettings();
+  if (id === 'pageMyFoods') { renderMyFoods(); renderRecipeList(); }
 
   // Show/hide date nav only on Today page
   document.getElementById('dateNav').style.display = id === 'pageToday' ? 'flex' : 'none';
@@ -1109,6 +1465,14 @@ function openModal(type) {
   else if (type === 'weightLog') {
     document.getElementById('modalWeightLog').classList.add('show');
     renderWeightLog();
+  }
+  else if (type === 'customFood') {
+    document.getElementById('modalCustomFood').classList.add('show');
+  }
+  else if (type === 'recipe') {
+    recipeIngredients = [];
+    renderIngredientList();
+    document.getElementById('modalRecipe').classList.add('show');
   }
 }
 
