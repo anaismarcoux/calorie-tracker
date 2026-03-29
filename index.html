@@ -959,6 +959,12 @@ foodNameInput.addEventListener('input', function() {
 function showSearchResults(localResults, query) {
   let html = '';
 
+  // Always show online search at the top
+  html += `<div class="search-item" onclick="searchOnline('${esc(query)}')" style="border-bottom:2px solid rgba(255,255,255,0.1)">
+    <span class="s-name" style="color:var(--accent)">Search online for "${esc(query)}"</span>
+    <span class="s-cal" style="color:var(--accent)">Open Food Facts</span>
+  </div>`;
+
   if (localResults.length > 0) {
     html += localResults.map(f =>
       `<div class="search-item" onclick="selectFood('${esc(f.name)}', ${f.cal})">
@@ -967,10 +973,6 @@ function showSearchResults(localResults, query) {
       </div>`
     ).join('');
   }
-
-  html += `<div class="search-item" onclick="searchOnline('${esc(query)}')">
-    <span class="s-name" style="color:var(--accent)">Search online for "${esc(query)}"...</span>
-  </div>`;
 
   searchResultsEl.innerHTML = html;
   searchResultsEl.classList.add('show');
