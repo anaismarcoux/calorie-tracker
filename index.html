@@ -400,7 +400,7 @@ body {
     <div class="section-header">
       <h2>Measurements</h2>
       <div>
-        <button class="add-btn" onclick="openModal('chart')" style="background:var(--accent2);margin-right:6px">Graph</button>
+        <button class="add-btn" onclick="openModal('weightLog')" style="background:var(--accent2);margin-right:6px">History</button>
         <button class="add-btn" onclick="openModal('measurements')" style="background:var(--accent2)">Log</button>
       </div>
     </div>
@@ -468,18 +468,13 @@ body {
   </button>
 </div>
 
-<!-- MODAL: WEIGHT CHART -->
-<div class="modal-overlay" id="modalChart">
-  <div class="modal" style="height:70vh;display:flex;flex-direction:column;">
-    <h3>Weight Over Time</h3>
-    <div style="display:flex;gap:8px;justify-content:center;margin-bottom:12px;">
-      <button class="add-btn" style="padding:4px 12px;font-size:12px;" onclick="drawChart('30')">30d</button>
-      <button class="add-btn" style="padding:4px 12px;font-size:12px;" onclick="drawChart('90')">90d</button>
-      <button class="add-btn" style="padding:4px 12px;font-size:12px;" onclick="drawChart('all')">All</button>
-    </div>
-    <canvas id="weightChart" style="flex:1;width:100%;"></canvas>
+<!-- MODAL: WEIGHT LOG -->
+<div class="modal-overlay" id="modalWeightLog">
+  <div class="modal" style="max-height:70vh;display:flex;flex-direction:column;">
+    <h3>Weight History</h3>
+    <div id="weightLogList" style="flex:1;overflow-y:auto;"></div>
     <div class="modal-actions" style="margin-top:12px;">
-      <button class="btn-cancel" onclick="closeModal('modalChart')" style="flex:1">Close</button>
+      <button class="btn-cancel" onclick="closeModal('modalWeightLog')" style="flex:1">Close</button>
     </div>
   </div>
 </div>
@@ -993,111 +988,46 @@ function exportData() {
   a.click();
 }
 
-// ── Weight Chart ──
-function drawChart(range) {
+// ── Weight Log ──
+function renderWeightLog() {
   const all = getData('days');
   const isImperial = settings.units === 'imperial';
+  const unit = isImperial ? 'lbs' : 'kg';
 
-  // Collect all dates with weight data
-  let entries = Object.keys(all)
+  const entries = Object.keys(all)
     .filter(k => all[k].measurements && all[k].measurements.weight)
     .sort()
+    .reverse()
     .map(k => ({
       date: k,
-      weight: isImperial ? all[k].measurements.weight * 2.205 : all[k].measurements.weight
+      weight: isImperial ? (all[k].measurements.weight * 2.205).toFixed(1) : all[k].measurements.weight
     }));
 
-  if (range !== 'all') {
-    const days = parseInt(range);
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - days);
-    const cutoffStr = dateKey(cutoff);
-    entries = entries.filter(e => e.date >= cutoffStr);
-  }
+  const list = document.getElementById('weightLogList');
 
-  const canvas = document.getElementById('weightChart');
-  const ctx = canvas.getContext('2d');
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = canvas.offsetWidth * dpr;
-  canvas.height = canvas.offsetHeight * dpr;
-  ctx.scale(dpr, dpr);
-  const W = canvas.offsetWidth;
-  const H = canvas.offsetHeight;
-
-  ctx.clearRect(0, 0, W, H);
-
-  if (entries.length < 2) {
-    ctx.fillStyle = '#999';
-    ctx.font = '14px -apple-system, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('Need at least 2 days of weight data', W / 2, H / 2);
+  if (entries.length === 0) {
+    list.innerHTML = '<div class="empty">No weight logged yet</div>';
     return;
   }
 
-  const weights = entries.map(e => e.weight);
-  const minW = Math.min(...weights);
-  const maxW = Math.max(...weights);
-  const padding = { top: 20, right: 16, bottom: 40, left: 46 };
-  const chartW = W - padding.left - padding.right;
-  const chartH = H - padding.top - padding.bottom;
-  const range_w = maxW === minW ? 2 : maxW - minW;
-
-  // Grid lines
-  ctx.strokeStyle = 'rgba(255,255,255,0.07)';
-  ctx.lineWidth = 1;
-  const gridLines = 5;
-  ctx.font = '11px -apple-system, sans-serif';
-  ctx.fillStyle = '#999';
-  ctx.textAlign = 'right';
-  for (let i = 0; i <= gridLines; i++) {
-    const y = padding.top + (chartH / gridLines) * i;
-    const val = maxW - (range_w / gridLines) * i;
-    ctx.beginPath();
-    ctx.moveTo(padding.left, y);
-    ctx.lineTo(W - padding.right, y);
-    ctx.stroke();
-    ctx.fillText(val.toFixed(1), padding.left - 6, y + 4);
-  }
-
-  // Date labels
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#999';
-  const labelCount = Math.min(entries.length, 5);
-  for (let i = 0; i < labelCount; i++) {
-    const idx = Math.round((i / (labelCount - 1)) * (entries.length - 1));
-    const x = padding.left + (idx / (entries.length - 1)) * chartW;
-    const d = entries[idx].date.substring(5); // MM-DD
-    ctx.fillText(d, x, H - padding.bottom + 18);
-  }
-
-  // Line
-  ctx.beginPath();
-  ctx.strokeStyle = '#e94560';
-  ctx.lineWidth = 2;
-  ctx.lineJoin = 'round';
-  entries.forEach((e, i) => {
-    const x = padding.left + (i / (entries.length - 1)) * chartW;
-    const y = padding.top + chartH - ((e.weight - minW) / range_w) * chartH;
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  });
-  ctx.stroke();
-
-  // Dots
-  ctx.fillStyle = '#e94560';
-  entries.forEach((e, i) => {
-    const x = padding.left + (i / (entries.length - 1)) * chartW;
-    const y = padding.top + chartH - ((e.weight - minW) / range_w) * chartH;
-    ctx.beginPath();
-    ctx.arc(x, y, 3, 0, Math.PI * 2);
-    ctx.fill();
-  });
-
-  // Unit label
-  ctx.fillStyle = '#666';
-  ctx.font = '10px -apple-system, sans-serif';
-  ctx.textAlign = 'left';
-  ctx.fillText(isImperial ? 'lbs' : 'kg', padding.left, padding.top - 6);
+  list.innerHTML = entries.map((e, i) => {
+    let diff = '';
+    if (i < entries.length - 1) {
+      const change = (e.weight - entries[i + 1].weight).toFixed(1);
+      if (change > 0) diff = `<span style="color:var(--red)">+${change}</span>`;
+      else if (change < 0) diff = `<span style="color:var(--green)">${change}</span>`;
+      else diff = `<span style="color:var(--text2)">0</span>`;
+    }
+    return `<div class="entry" style="margin-bottom:4px;">
+      <div class="info">
+        <div class="name">${e.date}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:16px;font-weight:700;">${e.weight} ${unit}</div>
+        ${diff ? `<div style="font-size:12px;">${diff} ${unit}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ── Navigation ──
@@ -1122,9 +1052,9 @@ function openModal(type) {
     updateUnitLabels();
     document.getElementById('modalMeasurements').classList.add('show');
   }
-  else if (type === 'chart') {
-    document.getElementById('modalChart').classList.add('show');
-    setTimeout(() => drawChart('all'), 50);
+  else if (type === 'weightLog') {
+    document.getElementById('modalWeightLog').classList.add('show');
+    renderWeightLog();
   }
 }
 
