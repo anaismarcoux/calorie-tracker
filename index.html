@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#e94560">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Calorie Tracker</title>
+<style>
+:root {
+  --bg: #1a1a2e;
+  --card: #16213e;
+  --accent: #e94560;
+  --accent2: #0f3460;
+  --text: #eee;
+  --text2: #999;
+  --green: #4ecca3;
+  --red: #e94560;
+  --orange: #f5a623;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding-bottom: 80px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.header {
+  padding: 16px;
+  text-align: center;
+  background: var(--card);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.header h1 { font-size: 18px; font-weight: 600; }
+
+.date-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.date-nav button {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.date-nav span { font-size: 14px; color: var(--text2); }
+
+.summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  padding: 16px;
+}
+
+.summary-card {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 12px;
+  text-align: center;
+}
+
+.summary-card .label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; }
+.summary-card .value { font-size: 22px; font-weight: 700; margin-top: 4px; }
+.summary-card .sub { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+.progress-bar {
+  margin: 0 16px 16px;
+  height: 8px;
+  background: var(--card);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar .fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s, background 0.3s;
+}
+
+.section {
+  margin: 0 16px 16px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.section-header h2 { font-size: 16px; font-weight: 600; }
+
+.add-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.entry-list { display: flex; flex-direction: column; gap: 6px; }
+
+.entry {
+  background: var(--card);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.entry .info { flex: 1; }
+.entry .name { font-size: 14px; font-weight: 500; }
+.entry .detail { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.entry .cals { font-size: 16px; font-weight: 700; white-space: nowrap; margin-left: 12px; }
+.entry .cals.food { color: var(--red); }
+.entry .cals.exercise { color: var(--green); }
+
+.entry .delete-btn {
+  background: none;
+  border: none;
+  color: var(--text2);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  margin-left: 8px;
+}
+
+.empty { color: var(--text2); font-size: 13px; text-align: center; padding: 20px; }
+
+/* Measurements */
+.measurements-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.measure-card {
+  background: var(--card);
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.measure-card .m-label { font-size: 11px; color: var(--text2); text-transform: uppercase; }
+.measure-card .m-value { font-size: 20px; font-weight: 700; margin-top: 4px; }
+.measure-card .m-unit { font-size: 11px; color: var(--text2); }
+
+/* Bottom nav */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--card);
+  border-top: 1px solid rgba(255,255,255,0.05);
+  display: flex;
+  justify-content: space-around;
+  padding: 8px 0;
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+  z-index: 10;
+}
+
+.nav-btn {
+  background: none;
+  border: none;
+  color: var(--text2);
+  font-size: 10px;
+  text-align: center;
+  cursor: pointer;
+  padding: 4px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.nav-btn.active { color: var(--accent); }
+.nav-btn svg { width: 24px; height: 24px; fill: currentColor; }
+
+/* Pages */
+.page { display: none; }
+.page.active { display: block; }
+
+/* Modal */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 100;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.modal-overlay.show { display: flex; }
+
+.modal {
+  background: var(--card);
+  border-radius: 16px 16px 0 0;
+  width: 100%;
+  max-width: 500px;
+  padding: 24px 16px;
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+}
+
+.modal h3 { font-size: 18px; margin-bottom: 16px; text-align: center; }
+
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: 13px; color: var(--text2); margin-bottom: 4px; }
+
+.form-group input, .form-group select {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 16px;
+  outline: none;
+}
+
+.form-group input:focus { border-color: var(--accent); }
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.modal-actions button {
+  flex: 1;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-cancel { background: var(--bg); color: var(--text); }
+.btn-save { background: var(--accent); color: #fff; }
+
+/* Settings */
+.setting-row {
+  background: var(--card);
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.setting-row label { font-size: 14px; }
+.setting-row input {
+  width: 100px;
+  padding: 8px;
+  background: var(--bg);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 16px;
+  text-align: right;
+  outline: none;
+}
+
+/* History page */
+.history-entry {
+  background: var(--card);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+.history-entry .h-date { font-size: 13px; color: var(--accent); font-weight: 600; }
+.history-entry .h-stats { font-size: 13px; color: var(--text2); margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <h1>Calorie Tracker</h1>
+  <div class="date-nav" id="dateNav">
+    <button onclick="changeDate(-1)">&larr;</button>
+    <span id="dateLabel"></span>
+    <button onclick="changeDate(1)">&rarr;</button>
+  </div>
+</div>
+
+<!-- PAGE: TODAY -->
+<div class="page active" id="pageToday">
+  <div class="summary">
+    <div class="summary-card">
+      <div class="label">Eaten</div>
+      <div class="value" id="sumEaten">0</div>
+      <div class="sub">kcal</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Burned</div>
+      <div class="value" id="sumBurned" style="color:var(--green)">0</div>
+      <div class="sub">kcal</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Remaining</div>
+      <div class="value" id="sumRemaining">0</div>
+      <div class="sub">kcal</div>
+    </div>
+  </div>
+
+  <div class="progress-bar"><div class="fill" id="progressFill"></div></div>
+
+  <div class="section">
+    <div class="section-header">
+      <h2>Food</h2>
+      <button class="add-btn" onclick="openModal('food')">+ Add</button>
+    </div>
+    <div class="entry-list" id="foodList"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <h2>Exercise</h2>
+      <button class="add-btn" onclick="openModal('exercise')" style="background:var(--green)">+ Add</button>
+    </div>
+    <div class="entry-list" id="exerciseList"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <h2>Measurements</h2>
+      <button class="add-btn" onclick="openModal('measurements')" style="background:var(--accent2)">Log</button>
+    </div>
+    <div class="measurements-grid" id="measureGrid">
+      <div class="measure-card">
+        <div class="m-label">Weight</div>
+        <div class="m-value" id="mWeight">--</div>
+        <div class="m-unit">kg</div>
+      </div>
+      <div class="measure-card">
+        <div class="m-label">Waist</div>
+        <div class="m-value" id="mWaist">--</div>
+        <div class="m-unit">cm</div>
+      </div>
+      <div class="measure-card">
+        <div class="m-label">Hip</div>
+        <div class="m-value" id="mHip">--</div>
+        <div class="m-unit">cm</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: HISTORY -->
+<div class="page" id="pageHistory">
+  <div class="section" style="margin-top:16px">
+    <h2 style="margin-bottom:12px">History</h2>
+    <div id="historyList"></div>
+  </div>
+</div>
+
+<!-- PAGE: SETTINGS -->
+<div class="page" id="pageSettings">
+  <div class="section" style="margin-top:16px">
+    <h2 style="margin-bottom:12px">Settings</h2>
+    <div class="setting-row">
+      <label>Daily calorie goal</label>
+      <input type="number" id="goalInput" inputmode="numeric" placeholder="2000">
+    </div>
+    <div class="setting-row">
+      <label>Units</label>
+      <select id="unitSelect" style="width:100px;padding:8px;background:var(--bg);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:var(--text);font-size:14px;">
+        <option value="metric">Metric</option>
+        <option value="imperial">Imperial</option>
+      </select>
+    </div>
+    <button class="add-btn" style="width:100%;margin-top:12px;padding:12px;font-size:15px;" onclick="saveSettings()">Save Settings</button>
+    <button class="add-btn" style="width:100%;margin-top:8px;padding:12px;font-size:15px;background:var(--accent2);" onclick="exportData()">Export Data (JSON)</button>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bottom-nav">
+  <button class="nav-btn active" onclick="showPage('pageToday', this)">
+    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+    Today
+  </button>
+  <button class="nav-btn" onclick="showPage('pageHistory', this)">
+    <svg viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+    History
+  </button>
+  <button class="nav-btn" onclick="showPage('pageSettings', this)">
+    <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+    Settings
+  </button>
+</div>
+
+<!-- MODAL: ADD FOOD -->
+<div class="modal-overlay" id="modalFood">
+  <div class="modal">
+    <h3>Add Food</h3>
+    <div class="form-group">
+      <label>Food name</label>
+      <input type="text" id="foodName" placeholder="e.g. Chicken breast">
+    </div>
+    <div class="form-group">
+      <label>Weight (g)</label>
+      <input type="number" id="foodWeight" inputmode="decimal" placeholder="e.g. 150">
+    </div>
+    <div class="form-group">
+      <label>Calories (kcal)</label>
+      <input type="number" id="foodCals" inputmode="decimal" placeholder="e.g. 250">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modalFood')">Cancel</button>
+      <button class="btn-save" onclick="addFood()">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ADD EXERCISE -->
+<div class="modal-overlay" id="modalExercise">
+  <div class="modal">
+    <h3>Add Exercise</h3>
+    <div class="form-group">
+      <label>Activity</label>
+      <input type="text" id="exName" placeholder="e.g. Running">
+    </div>
+    <div class="form-group">
+      <label>Duration (min)</label>
+      <input type="number" id="exDuration" inputmode="numeric" placeholder="e.g. 30">
+    </div>
+    <div class="form-group">
+      <label>Calories burned (kcal)</label>
+      <input type="number" id="exCals" inputmode="decimal" placeholder="e.g. 300">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modalExercise')">Cancel</button>
+      <button class="btn-save" style="background:var(--green)" onclick="addExercise()">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: MEASUREMENTS -->
+<div class="modal-overlay" id="modalMeasurements">
+  <div class="modal">
+    <h3>Log Measurements</h3>
+    <div class="form-group">
+      <label id="weightLabel">Weight (kg)</label>
+      <input type="number" id="inputWeight" inputmode="decimal" placeholder="e.g. 70">
+    </div>
+    <div class="form-group">
+      <label id="waistLabel">Waist (cm)</label>
+      <input type="number" id="inputWaist" inputmode="decimal" placeholder="e.g. 80">
+    </div>
+    <div class="form-group">
+      <label id="hipLabel">Hip (cm)</label>
+      <input type="number" id="inputHip" inputmode="decimal" placeholder="e.g. 95">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modalMeasurements')">Cancel</button>
+      <button class="btn-save" style="background:var(--accent2)" onclick="saveMeasurements()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──
+let currentDate = new Date();
+let settings = JSON.parse(localStorage.getItem('ct_settings') || '{"goal":2000,"units":"metric"}');
+
+function dateKey(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function getData(key) {
+  return JSON.parse(localStorage.getItem('ct_' + key) || '{}');
+}
+
+function setData(key, val) {
+  localStorage.setItem('ct_' + key, JSON.stringify(val));
+}
+
+function getDayData(d) {
+  const key = dateKey(d || currentDate);
+  const all = getData('days');
+  return all[key] || { food: [], exercise: [], measurements: {} };
+}
+
+function setDayData(d, data) {
+  const key = dateKey(d || currentDate);
+  const all = getData('days');
+  all[key] = data;
+  setData('days', all);
+}
+
+// ── Date Navigation ──
+function updateDateLabel() {
+  const today = new Date();
+  const dk = dateKey(currentDate);
+  const tk = dateKey(today);
+  let label = currentDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  if (dk === tk) label = 'Today';
+  else if (dk === dateKey(new Date(today.getTime() - 86400000))) label = 'Yesterday';
+  document.getElementById('dateLabel').textContent = label;
+}
+
+function changeDate(dir) {
+  currentDate = new Date(currentDate.getTime() + dir * 86400000);
+  updateDateLabel();
+  render();
+}
+
+// ── Render ──
+function render() {
+  const day = getDayData();
+  const goal = settings.goal || 2000;
+
+  const eaten = day.food.reduce((s, f) => s + (f.cals || 0), 0);
+  const burned = day.exercise.reduce((s, e) => s + (e.cals || 0), 0);
+  const budget = goal + burned;
+  const remaining = budget - eaten;
+
+  document.getElementById('sumEaten').textContent = Math.round(eaten);
+  document.getElementById('sumBurned').textContent = Math.round(burned);
+
+  const remEl = document.getElementById('sumRemaining');
+  remEl.textContent = Math.round(remaining);
+  remEl.style.color = remaining >= 0 ? 'var(--green)' : 'var(--red)';
+
+  const pct = Math.min((eaten / budget) * 100, 100);
+  const fill = document.getElementById('progressFill');
+  fill.style.width = pct + '%';
+  fill.style.background = eaten > budget ? 'var(--red)' : eaten > budget * 0.85 ? 'var(--orange)' : 'var(--green)';
+
+  // Food list
+  const foodList = document.getElementById('foodList');
+  if (day.food.length === 0) {
+    foodList.innerHTML = '<div class="empty">No food logged yet</div>';
+  } else {
+    foodList.innerHTML = day.food.map((f, i) => `
+      <div class="entry">
+        <div class="info">
+          <div class="name">${esc(f.name)}</div>
+          <div class="detail">${f.weight ? f.weight + 'g' : ''}</div>
+        </div>
+        <div class="cals food">${Math.round(f.cals)}</div>
+        <button class="delete-btn" onclick="deleteFood(${i})">&times;</button>
+      </div>
+    `).join('');
+  }
+
+  // Exercise list
+  const exList = document.getElementById('exerciseList');
+  if (day.exercise.length === 0) {
+    exList.innerHTML = '<div class="empty">No exercise logged yet</div>';
+  } else {
+    exList.innerHTML = day.exercise.map((e, i) => `
+      <div class="entry">
+        <div class="info">
+          <div class="name">${esc(e.name)}</div>
+          <div class="detail">${e.duration ? e.duration + ' min' : ''}</div>
+        </div>
+        <div class="cals exercise">+${Math.round(e.cals)}</div>
+        <button class="delete-btn" onclick="deleteExercise(${i})">&times;</button>
+      </div>
+    `).join('');
+  }
+
+  // Measurements
+  const m = day.measurements || {};
+  const isImperial = settings.units === 'imperial';
+  document.getElementById('mWeight').textContent = m.weight ? (isImperial ? (m.weight * 2.205).toFixed(1) : m.weight) : '--';
+  document.getElementById('mWaist').textContent = m.waist ? (isImperial ? (m.waist / 2.54).toFixed(1) : m.waist) : '--';
+  document.getElementById('mHip').textContent = m.hip ? (isImperial ? (m.hip / 2.54).toFixed(1) : m.hip) : '--';
+
+  // Update unit labels
+  updateUnitLabels();
+}
+
+function updateUnitLabels() {
+  const isImperial = settings.units === 'imperial';
+  document.querySelectorAll('.m-unit')[0].textContent = isImperial ? 'lbs' : 'kg';
+  document.querySelectorAll('.m-unit')[1].textContent = isImperial ? 'in' : 'cm';
+  document.querySelectorAll('.m-unit')[2].textContent = isImperial ? 'in' : 'cm';
+
+  document.getElementById('weightLabel').textContent = isImperial ? 'Weight (lbs)' : 'Weight (kg)';
+  document.getElementById('waistLabel').textContent = isImperial ? 'Waist (in)' : 'Waist (cm)';
+  document.getElementById('hipLabel').textContent = isImperial ? 'Hip (in)' : 'Hip (cm)';
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+
+// ── Food ──
+function addFood() {
+  const name = document.getElementById('foodName').value.trim();
+  const weight = parseFloat(document.getElementById('foodWeight').value) || 0;
+  const cals = parseFloat(document.getElementById('foodCals').value) || 0;
+  if (!name || !cals) return;
+
+  const day = getDayData();
+  day.food.push({ name, weight, cals });
+  setDayData(null, day);
+  closeModal('modalFood');
+  document.getElementById('foodName').value = '';
+  document.getElementById('foodWeight').value = '';
+  document.getElementById('foodCals').value = '';
+  render();
+}
+
+function deleteFood(i) {
+  const day = getDayData();
+  day.food.splice(i, 1);
+  setDayData(null, day);
+  render();
+}
+
+// ── Exercise ──
+function addExercise() {
+  const name = document.getElementById('exName').value.trim();
+  const duration = parseFloat(document.getElementById('exDuration').value) || 0;
+  const cals = parseFloat(document.getElementById('exCals').value) || 0;
+  if (!name || !cals) return;
+
+  const day = getDayData();
+  day.exercise.push({ name, duration, cals });
+  setDayData(null, day);
+  closeModal('modalExercise');
+  document.getElementById('exName').value = '';
+  document.getElementById('exDuration').value = '';
+  document.getElementById('exCals').value = '';
+  render();
+}
+
+function deleteExercise(i) {
+  const day = getDayData();
+  day.exercise.splice(i, 1);
+  setDayData(null, day);
+  render();
+}
+
+// ── Measurements ──
+function saveMeasurements() {
+  const isImperial = settings.units === 'imperial';
+  let weight = parseFloat(document.getElementById('inputWeight').value) || 0;
+  let waist = parseFloat(document.getElementById('inputWaist').value) || 0;
+  let hip = parseFloat(document.getElementById('inputHip').value) || 0;
+
+  // Store internally in metric
+  if (isImperial) {
+    weight = weight / 2.205;
+    waist = waist * 2.54;
+    hip = hip * 2.54;
+  }
+
+  const day = getDayData();
+  day.measurements = {};
+  if (weight) day.measurements.weight = Math.round(weight * 10) / 10;
+  if (waist) day.measurements.waist = Math.round(waist * 10) / 10;
+  if (hip) day.measurements.hip = Math.round(hip * 10) / 10;
+  setDayData(null, day);
+  closeModal('modalMeasurements');
+  document.getElementById('inputWeight').value = '';
+  document.getElementById('inputWaist').value = '';
+  document.getElementById('inputHip').value = '';
+  render();
+}
+
+// ── History ──
+function renderHistory() {
+  const all = getData('days');
+  const keys = Object.keys(all).sort().reverse();
+  const list = document.getElementById('historyList');
+
+  if (keys.length === 0) {
+    list.innerHTML = '<div class="empty">No data yet</div>';
+    return;
+  }
+
+  const isImperial = settings.units === 'imperial';
+  list.innerHTML = keys.map(k => {
+    const d = all[k];
+    const eaten = d.food ? d.food.reduce((s, f) => s + (f.cals || 0), 0) : 0;
+    const burned = d.exercise ? d.exercise.reduce((s, e) => s + (e.cals || 0), 0) : 0;
+    const m = d.measurements || {};
+
+    let mText = '';
+    if (m.weight) mText += (isImperial ? (m.weight * 2.205).toFixed(1) + ' lbs' : m.weight + ' kg');
+    if (m.waist) mText += (mText ? ' | ' : '') + 'W: ' + (isImperial ? (m.waist / 2.54).toFixed(1) + '"' : m.waist + ' cm');
+    if (m.hip) mText += (mText ? ' | ' : '') + 'H: ' + (isImperial ? (m.hip / 2.54).toFixed(1) + '"' : m.hip + ' cm');
+
+    return `<div class="history-entry">
+      <div class="h-date">${k}</div>
+      <div class="h-stats">Eaten: ${Math.round(eaten)} kcal | Burned: ${Math.round(burned)} kcal${mText ? ' | ' + mText : ''}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Settings ──
+function loadSettings() {
+  document.getElementById('goalInput').value = settings.goal || 2000;
+  document.getElementById('unitSelect').value = settings.units || 'metric';
+}
+
+function saveSettings() {
+  settings.goal = parseInt(document.getElementById('goalInput').value) || 2000;
+  settings.units = document.getElementById('unitSelect').value;
+  localStorage.setItem('ct_settings', JSON.stringify(settings));
+  render();
+}
+
+function exportData() {
+  const data = {
+    settings,
+    days: getData('days')
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'calorie-data-' + dateKey(new Date()) + '.json';
+  a.click();
+}
+
+// ── Navigation ──
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  if (id === 'pageHistory') renderHistory();
+  if (id === 'pageSettings') loadSettings();
+
+  // Show/hide date nav only on Today page
+  document.getElementById('dateNav').style.display = id === 'pageToday' ? 'flex' : 'none';
+}
+
+// ── Modal ──
+function openModal(type) {
+  if (type === 'food') document.getElementById('modalFood').classList.add('show');
+  else if (type === 'exercise') document.getElementById('modalExercise').classList.add('show');
+  else if (type === 'measurements') {
+    updateUnitLabels();
+    document.getElementById('modalMeasurements').classList.add('show');
+  }
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('show');
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => {
+    if (e.target === el) el.classList.remove('show');
+  });
+});
+
+// ── Init ──
+updateDateLabel();
+render();
+
+// Register service worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
+</script>
+</body>
+</html>
