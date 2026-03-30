@@ -610,6 +610,10 @@ body {
 <div class="modal-overlay" id="modalWeightLog">
   <div class="modal" style="max-height:70vh;display:flex;flex-direction:column;">
     <h3>Weight History</h3>
+    <div class="tab-bar" style="margin-bottom:12px;">
+      <button class="active" id="wTabDaily" onclick="switchWeightTab('daily')">Daily</button>
+      <button id="wTabWeekly" onclick="switchWeightTab('weekly')">Weekly Avg</button>
+    </div>
     <div id="weightLogList" style="flex:1;overflow-y:auto;"></div>
     <div class="modal-actions" style="margin-top:12px;">
       <button class="btn-cancel" onclick="closeModal('modalWeightLog')" style="flex:1">Close</button>
@@ -1468,45 +1472,112 @@ function switchMyFoodsTab(tab, btn) {
 }
 
 // ── Weight Log ──
-function renderWeightLog() {
+let weightTab = 'daily';
+
+function switchWeightTab(tab) {
+  weightTab = tab;
+  document.getElementById('wTabDaily').classList.toggle('active', tab === 'daily');
+  document.getElementById('wTabWeekly').classList.toggle('active', tab === 'weekly');
+  renderWeightLog();
+}
+
+function getWeightEntries() {
   const all = getData('days');
   const isImperial = settings.units === 'imperial';
-  const unit = isImperial ? 'lbs' : 'kg';
-
-  const entries = Object.keys(all)
+  return Object.keys(all)
     .filter(k => all[k].measurements && all[k].measurements.weight)
     .sort()
-    .reverse()
     .map(k => ({
       date: k,
-      weight: isImperial ? (all[k].measurements.weight * 2.205).toFixed(1) : all[k].measurements.weight
+      weightKg: all[k].measurements.weight,
+      weightDisplay: isImperial
+        ? parseFloat((all[k].measurements.weight * 2.205).toFixed(1))
+        : all[k].measurements.weight
     }));
+}
 
+function getSundayWeekKey(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const day = d.getDay(); // 0=Sun
+  const sunday = new Date(d);
+  sunday.setDate(d.getDate() - day);
+  return dateKey(sunday);
+}
+
+function renderWeightLog() {
+  const isImperial = settings.units === 'imperial';
+  const unit = isImperial ? 'lbs' : 'kg';
   const list = document.getElementById('weightLogList');
+  const entries = getWeightEntries();
 
   if (entries.length === 0) {
     list.innerHTML = '<div class="empty">No weight logged yet</div>';
     return;
   }
 
-  list.innerHTML = entries.map((e, i) => {
-    let diff = '';
-    if (i < entries.length - 1) {
-      const change = (e.weight - entries[i + 1].weight).toFixed(1);
-      if (change > 0) diff = `<span style="color:var(--red)">+${change}</span>`;
-      else if (change < 0) diff = `<span style="color:var(--green)">${change}</span>`;
-      else diff = `<span style="color:var(--text2)">0</span>`;
-    }
-    return `<div class="entry" style="margin-bottom:4px;">
-      <div class="info">
-        <div class="name">${e.date}</div>
-      </div>
-      <div style="text-align:right;">
-        <div style="font-size:16px;font-weight:700;">${e.weight} ${unit}</div>
-        ${diff ? `<div style="font-size:12px;">${diff} ${unit}</div>` : ''}
-      </div>
-    </div>`;
-  }).join('');
+  if (weightTab === 'daily') {
+    const reversed = [...entries].reverse();
+    list.innerHTML = reversed.map((e, i) => {
+      const prev = reversed[i + 1];
+      let diff = '';
+      if (prev) {
+        const change = (e.weightDisplay - prev.weightDisplay).toFixed(1);
+        if (change > 0) diff = `<span style="color:var(--red)">+${change} ${unit}</span>`;
+        else if (change < 0) diff = `<span style="color:var(--green)">${change} ${unit}</span>`;
+        else diff = `<span style="color:var(--text2)">no change</span>`;
+      }
+      return `<div class="entry" style="margin-bottom:4px;">
+        <div class="info">
+          <div class="name">${e.date}</div>
+          ${diff ? `<div class="detail">${diff}</div>` : ''}
+        </div>
+        <div style="font-size:16px;font-weight:700;">${e.weightDisplay} ${unit}</div>
+      </div>`;
+    }).join('');
+
+  } else {
+    // Group by week (Sun–Sat)
+    const weeks = {};
+    entries.forEach(e => {
+      const wk = getSundayWeekKey(e.date);
+      if (!weeks[wk]) weeks[wk] = [];
+      weeks[wk].push(e);
+    });
+
+    const weekKeys = Object.keys(weeks).sort().reverse();
+    list.innerHTML = weekKeys.map((wk, i) => {
+      const days = weeks[wk];
+      const avg = days.reduce((s, e) => s + e.weightDisplay, 0) / days.length;
+
+      // End of week = Saturday
+      const sun = new Date(wk + 'T00:00:00');
+      const sat = new Date(sun);
+      sat.setDate(sun.getDate() + 6);
+      const label = `${wk} – ${dateKey(sat)}`;
+
+      const prevWk = weekKeys[i + 1];
+      let diff = '';
+      if (prevWk) {
+        const prevDays = weeks[prevWk];
+        const prevAvg = prevDays.reduce((s, e) => s + e.weightDisplay, 0) / prevDays.length;
+        const change = (avg - prevAvg).toFixed(1);
+        if (change > 0) diff = `<span style="color:var(--red)">+${change} ${unit} vs prev week</span>`;
+        else if (change < 0) diff = `<span style="color:var(--green)">${change} ${unit} vs prev week</span>`;
+        else diff = `<span style="color:var(--text2)">same as prev week</span>`;
+      }
+
+      return `<div class="entry" style="margin-bottom:4px;flex-direction:column;align-items:flex-start;gap:4px;">
+        <div style="width:100%;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div class="name" style="font-size:13px;">${label}</div>
+            <div class="detail">${days.length} day${days.length > 1 ? 's' : ''} logged</div>
+          </div>
+          <div style="font-size:18px;font-weight:700;">${avg.toFixed(1)} ${unit}</div>
+        </div>
+        ${diff ? `<div style="font-size:12px;">${diff}</div>` : ''}
+      </div>`;
+    }).join('');
+  }
 }
 
 // ── Navigation ──
