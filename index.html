@@ -472,16 +472,6 @@ body {
         <div class="m-value" id="mWeight">--</div>
         <div class="m-unit">kg</div>
       </div>
-      <div class="measure-card">
-        <div class="m-label">Waist</div>
-        <div class="m-value" id="mWaist">--</div>
-        <div class="m-unit">cm</div>
-      </div>
-      <div class="measure-card">
-        <div class="m-label">Hip</div>
-        <div class="m-value" id="mHip">--</div>
-        <div class="m-unit">cm</div>
-      </div>
     </div>
   </div>
 </div>
@@ -687,13 +677,6 @@ body {
       <input type="number" id="inputWeight" inputmode="decimal" placeholder="e.g. 70">
     </div>
     <div class="form-group">
-      <label id="waistLabel">Waist (cm)</label>
-      <input type="number" id="inputWaist" inputmode="decimal" placeholder="e.g. 80">
-    </div>
-    <div class="form-group">
-      <label id="hipLabel">Hip (cm)</label>
-      <input type="number" id="inputHip" inputmode="decimal" placeholder="e.g. 95">
-    </div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeModal('modalMeasurements')">Cancel</button>
       <button class="btn-save" style="background:var(--accent2)" onclick="saveMeasurements()">Save</button>
@@ -992,8 +975,6 @@ function render() {
   const m = day.measurements || {};
   const isImperial = settings.units === 'imperial';
   document.getElementById('mWeight').textContent = m.weight ? (isImperial ? (m.weight * 2.205).toFixed(1) : m.weight) : '--';
-  document.getElementById('mWaist').textContent = m.waist ? (isImperial ? (m.waist / 2.54).toFixed(1) : m.waist) : '--';
-  document.getElementById('mHip').textContent = m.hip ? (isImperial ? (m.hip / 2.54).toFixed(1) : m.hip) : '--';
 
   // Update unit labels
   updateUnitLabels();
@@ -1006,8 +987,6 @@ function updateUnitLabels() {
   document.querySelectorAll('.m-unit')[2].textContent = isImperial ? 'in' : 'cm';
 
   document.getElementById('weightLabel').textContent = isImperial ? 'Weight (lbs)' : 'Weight (kg)';
-  document.getElementById('waistLabel').textContent = isImperial ? 'Waist (in)' : 'Waist (cm)';
-  document.getElementById('hipLabel').textContent = isImperial ? 'Hip (in)' : 'Hip (cm)';
 }
 
 function esc(s) {
@@ -1216,26 +1195,18 @@ function deleteExercise(i) {
 function saveMeasurements() {
   const isImperial = settings.units === 'imperial';
   let weight = parseFloat(document.getElementById('inputWeight').value) || 0;
-  let waist = parseFloat(document.getElementById('inputWaist').value) || 0;
-  let hip = parseFloat(document.getElementById('inputHip').value) || 0;
 
   // Store internally in metric
   if (isImperial) {
     weight = weight / 2.205;
-    waist = waist * 2.54;
-    hip = hip * 2.54;
   }
 
   const day = getDayData();
   day.measurements = {};
   if (weight) day.measurements.weight = Math.round(weight * 10) / 10;
-  if (waist) day.measurements.waist = Math.round(waist * 10) / 10;
-  if (hip) day.measurements.hip = Math.round(hip * 10) / 10;
   setDayData(null, day);
   closeModal('modalMeasurements');
   document.getElementById('inputWeight').value = '';
-  document.getElementById('inputWaist').value = '';
-  document.getElementById('inputHip').value = '';
   render();
 }
 
@@ -1259,8 +1230,6 @@ function renderHistory() {
 
     let mText = '';
     if (m.weight) mText += (isImperial ? (m.weight * 2.205).toFixed(1) + ' lbs' : m.weight + ' kg');
-    if (m.waist) mText += (mText ? ' | ' : '') + 'W: ' + (isImperial ? (m.waist / 2.54).toFixed(1) + '"' : m.waist + ' cm');
-    if (m.hip) mText += (mText ? ' | ' : '') + 'H: ' + (isImperial ? (m.hip / 2.54).toFixed(1) + '"' : m.hip + ' cm');
 
     return `<div class="history-entry">
       <div class="h-date">${k}</div>
