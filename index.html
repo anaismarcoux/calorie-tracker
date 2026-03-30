@@ -985,10 +985,8 @@ function render() {
 
 function updateUnitLabels() {
   const isImperial = settings.units === 'imperial';
-  document.querySelectorAll('.m-unit')[0].textContent = isImperial ? 'lbs' : 'kg';
-  document.querySelectorAll('.m-unit')[1].textContent = isImperial ? 'in' : 'cm';
-  document.querySelectorAll('.m-unit')[2].textContent = isImperial ? 'in' : 'cm';
-
+  const mUnits = document.querySelectorAll('.m-unit');
+  if (mUnits[0]) mUnits[0].textContent = isImperial ? 'lbs' : 'kg';
   document.getElementById('weightLabel').textContent = isImperial ? 'Weight (lbs)' : 'Weight (kg)';
 }
 
