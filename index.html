@@ -1068,12 +1068,20 @@ function showSearchResults(localResults, query) {
 }
 
 async function searchOnline(query) {
-  searchResultsEl.innerHTML = '<div class="search-loading">Searching...</div>';
+  searchResultsEl.innerHTML = '<div class="search-loading">Searching online...</div>';
+  searchResultsEl.classList.add('show');
 
   try {
     const resp = await fetch(
-      `https://world.openfoodfacts.org/api/v2/search?search_terms=${encodeURIComponent(query)}&page_size=10&fields=product_name,nutriments`
+      `https://world.openfoodfacts.org/api/v2/search?search_terms=${encodeURIComponent(query)}&page_size=15&fields=product_name,nutriments`,
+      { headers: { 'User-Agent': 'CalorieTracker/1.0' } }
     );
+
+    if (!resp.ok) {
+      searchResultsEl.innerHTML = `<div class="search-loading">Search error (${resp.status}). Enter calories manually below.</div>`;
+      return;
+    }
+
     const data = await resp.json();
 
     if (!data.products || data.products.length === 0) {
@@ -1082,7 +1090,7 @@ async function searchOnline(query) {
     }
 
     const results = data.products
-      .filter(p => p.product_name && p.nutriments && p.nutriments['energy-kcal_100g'])
+      .filter(p => p.product_name && p.nutriments && (p.nutriments['energy-kcal_100g'] || p.nutriments['energy_100g']))
       .slice(0, 8);
 
     if (results.length === 0) {
@@ -1092,7 +1100,9 @@ async function searchOnline(query) {
 
     searchResultsEl.innerHTML = results.map(p => {
       const name = p.product_name.substring(0, 50);
-      const cal = Math.round(p.nutriments['energy-kcal_100g']);
+      let cal = p.nutriments['energy-kcal_100g'];
+      if (!cal && p.nutriments['energy_100g']) cal = p.nutriments['energy_100g'] / 4.184;
+      cal = Math.round(cal);
       return `<div class="search-item" onclick="selectFood('${esc(name)}', ${cal})">
         <span class="s-name">${esc(name)}</span>
         <span class="s-cal">${cal} kcal/100g</span>
@@ -1100,7 +1110,7 @@ async function searchOnline(query) {
     }).join('');
 
   } catch (e) {
-    searchResultsEl.innerHTML = '<div class="search-loading">Offline - enter calories manually below.</div>';
+    searchResultsEl.innerHTML = '<div class="search-loading">Connection error. Check internet and try again, or enter calories manually below.</div>';
   }
 }
 
