@@ -1588,9 +1588,98 @@ document.querySelectorAll('.modal-overlay').forEach(el => {
   });
 });
 
+// ── Cloud Sync (Supabase) ──
+const SUPA_URL = 'https://mypueognevbedaefpdyn.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im15cHVlb2duZXZiZWRhZWZwZHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NDU5NjAsImV4cCI6MjA5MDQyMTk2MH0.IQBJNaOYXC9addcqtj6rG0aVPzKN_TqHSIriMTtTKy8';
+
+function getAllLocalData() {
+  return {
+    days: getData('days'),
+    settings: JSON.parse(localStorage.getItem('ct_settings') || '{}'),
+    customFoods: JSON.parse(localStorage.getItem('ct_customFoods') || '[]'),
+    recipes: JSON.parse(localStorage.getItem('ct_recipes') || '[]'),
+  };
+}
+
+function applyCloudData(cloud) {
+  if (cloud.days) setData('days', cloud.days);
+  if (cloud.settings) {
+    localStorage.setItem('ct_settings', JSON.stringify(cloud.settings));
+    settings = cloud.settings;
+  }
+  if (cloud.customFoods) localStorage.setItem('ct_customFoods', JSON.stringify(cloud.customFoods));
+  if (cloud.recipes) localStorage.setItem('ct_recipes', JSON.stringify(cloud.recipes));
+}
+
+async function syncToCloud() {
+  try {
+    const localData = getAllLocalData();
+    await fetch(`${SUPA_URL}/rest/v1/user_data?id=eq.main`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPA_KEY,
+        'Authorization': `Bearer ${SUPA_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ data: localData, updated_at: new Date().toISOString() })
+    });
+  } catch (e) { /* offline, skip */ }
+}
+
+async function loadFromCloud() {
+  try {
+    const resp = await fetch(`${SUPA_URL}/rest/v1/user_data?id=eq.main&select=data`, {
+      headers: {
+        'apikey': SUPA_KEY,
+        'Authorization': `Bearer ${SUPA_KEY}`
+      }
+    });
+    const rows = await resp.json();
+    if (rows && rows[0] && rows[0].data && Object.keys(rows[0].data).length > 0) {
+      const cloud = rows[0].data;
+      const local = getAllLocalData();
+
+      // Merge: use whichever has more day entries (more data = more recent use)
+      const cloudDays = Object.keys(cloud.days || {}).length;
+      const localDays = Object.keys(local.days || {}).length;
+
+      if (cloudDays > localDays) {
+        // Cloud has more data, use cloud but merge in any local-only days
+        const merged = { ...cloud.days, ...local.days };
+        cloud.days = merged;
+        applyCloudData(cloud);
+        settings = JSON.parse(localStorage.getItem('ct_settings') || '{"goal":2000,"units":"metric"}');
+        render();
+      } else if (localDays > 0) {
+        // Local has more or equal data, push to cloud
+        syncToCloud();
+      }
+    } else if (Object.keys(getData('days')).length > 0) {
+      // Cloud is empty, push local data up
+      syncToCloud();
+    }
+  } catch (e) { /* offline, skip */ }
+}
+
+// Auto-save to cloud whenever data changes
+const origSetData = setData;
+setData = function(key, val) {
+  origSetData(key, val);
+  syncToCloud();
+};
+
+const origSetItem = localStorage.setItem.bind(localStorage);
+const syncKeys = ['ct_settings', 'ct_customFoods', 'ct_recipes'];
+localStorage.setItem = function(key, val) {
+  origSetItem(key, val);
+  if (syncKeys.includes(key)) syncToCloud();
+};
+
 // ── Init ──
 updateDateLabel();
 render();
+loadFromCloud();
 
 // Register service worker
 if ('serviceWorker' in navigator) {
