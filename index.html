@@ -467,7 +467,7 @@ body {
       </div>
     </div>
     <div class="measurements-grid" id="measureGrid">
-      <div class="measure-card">
+      <div class="measure-card" onclick="editWeight()" style="cursor:pointer">
         <div class="m-label">Weight</div>
         <div class="m-value" id="mWeight">--</div>
         <div class="m-unit">kg</div>
@@ -978,7 +978,7 @@ function render() {
   // Measurements
   const m = day.measurements || {};
   const isImperial = settings.units === 'imperial';
-  document.getElementById('mWeight').textContent = m.weight ? (isImperial ? (m.weight * 2.205).toFixed(1) : m.weight) : '--';
+  document.getElementById('mWeight').textContent = m.weight ? (isImperial ? (m.weightLbs || parseFloat((m.weight * 2.205).toFixed(1))) : m.weight) : '--';
 
   // Update unit labels
   updateUnitLabels();
@@ -1227,18 +1227,33 @@ function saveMeasurements() {
   const isImperial = settings.units === 'imperial';
   let weight = parseFloat(document.getElementById('inputWeight').value) || 0;
 
-  // Store internally in metric
-  if (isImperial) {
-    weight = weight / 2.205;
-  }
-
   const day = getDayData();
   day.measurements = {};
-  if (weight) day.measurements.weight = Math.round(weight * 10) / 10;
+  if (isImperial) {
+    if (weight) {
+      day.measurements.weightLbs = Math.round(weight * 10) / 10;
+      day.measurements.weight = Math.round((weight / 2.205) * 10) / 10;
+    }
+  } else {
+    if (weight) day.measurements.weight = Math.round(weight * 10) / 10;
+  }
   setDayData(null, day);
   closeModal('modalMeasurements');
   document.getElementById('inputWeight').value = '';
   render();
+}
+
+function editWeight() {
+  const day = getDayData();
+  const m = day.measurements || {};
+  if (m.weight) {
+    const isImperial = settings.units === 'imperial';
+    document.getElementById('inputWeight').value = isImperial
+      ? (m.weightLbs || parseFloat((m.weight * 2.205).toFixed(1)))
+      : m.weight;
+  }
+  updateUnitLabels();
+  document.getElementById('modalMeasurements').classList.add('show');
 }
 
 // ── History ──
@@ -1518,7 +1533,7 @@ function getWeightEntries() {
       date: k,
       weightKg: all[k].measurements.weight,
       weightDisplay: isImperial
-        ? parseFloat((all[k].measurements.weight * 2.205).toFixed(1))
+        ? (all[k].measurements.weightLbs || parseFloat((all[k].measurements.weight * 2.205).toFixed(1)))
         : all[k].measurements.weight
     }));
 }
