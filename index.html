@@ -873,6 +873,7 @@ const FOOD_DB = [
 // ── State ──
 let currentDate = new Date();
 let selectedFood = null; // {name, calPer100}
+let editingFoodIndex = -1;
 let searchTimeout = null;
 let settings = JSON.parse(localStorage.getItem('ct_settings') || '{"goal":2000,"units":"metric"}');
 
@@ -946,13 +947,13 @@ function render() {
     foodList.innerHTML = '<div class="empty">No food logged yet</div>';
   } else {
     foodList.innerHTML = day.food.map((f, i) => `
-      <div class="entry">
+      <div class="entry" onclick="editFood(${i})" style="cursor:pointer">
         <div class="info">
           <div class="name">${esc(f.name)}</div>
           <div class="detail">${f.weight ? f.weight + 'g' : ''}${f.calPer100 ? ' (' + f.calPer100 + ' kcal/100g)' : ''}</div>
         </div>
         <div class="cals food">${Math.round(f.cals)}</div>
-        <button class="delete-btn" onclick="deleteFood(${i})">&times;</button>
+        <button class="delete-btn" onclick="event.stopPropagation();deleteFood(${i})">&times;</button>
       </div>
     `).join('');
   }
@@ -1148,7 +1149,12 @@ function addFood() {
   if (!name || !cals) return;
 
   const day = getDayData();
-  day.food.push({ name, weight, cals, calPer100: per100 || null });
+  if (editingFoodIndex >= 0) {
+    day.food[editingFoodIndex] = { name, weight, cals, calPer100: per100 || null };
+    editingFoodIndex = -1;
+  } else {
+    day.food.push({ name, weight, cals, calPer100: per100 || null });
+  }
   setDayData(null, day);
   closeModal('modalFood');
   foodNameInput.value = '';
@@ -1158,6 +1164,8 @@ function addFood() {
   selectedFood = null;
   calPreviewEl.style.display = 'none';
   manualCalGroup.style.display = 'block';
+  document.querySelector('#modalFood h3').textContent = 'Add Food';
+  document.querySelector('#modalFood .btn-save').textContent = 'Add';
   render();
 }
 
@@ -1166,6 +1174,28 @@ function deleteFood(i) {
   day.food.splice(i, 1);
   setDayData(null, day);
   render();
+}
+
+function editFood(i) {
+  const day = getDayData();
+  const f = day.food[i];
+  editingFoodIndex = i;
+  foodNameInput.value = f.name;
+  foodWeightInput.value = f.weight || '';
+  foodCalsPer100.value = f.calPer100 || '';
+  foodCalsInput.value = f.cals || '';
+  selectedFood = f.calPer100 ? { name: f.name, calPer100: f.calPer100 } : null;
+  if (f.calPer100 && f.weight) {
+    calPreviewEl.style.display = 'block';
+    calPreviewEl.textContent = Math.round((f.calPer100 / 100) * f.weight) + ' kcal';
+    manualCalGroup.style.display = 'none';
+  } else {
+    calPreviewEl.style.display = 'none';
+    manualCalGroup.style.display = 'block';
+  }
+  document.querySelector('#modalFood h3').textContent = 'Edit Food';
+  document.querySelector('#modalFood .btn-save').textContent = 'Save';
+  document.getElementById('modalFood').classList.add('show');
 }
 
 // ── Exercise ──
@@ -1616,6 +1646,11 @@ function openModal(type) {
 
 function closeModal(id) {
   document.getElementById(id).classList.remove('show');
+  if (id === 'modalFood') {
+    editingFoodIndex = -1;
+    document.querySelector('#modalFood h3').textContent = 'Add Food';
+    document.querySelector('#modalFood .btn-save').textContent = 'Add';
+  }
 }
 
 // Close modal on overlay click
