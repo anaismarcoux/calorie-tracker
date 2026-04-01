@@ -567,7 +567,14 @@ body {
       <input type="text" id="cfName" placeholder="e.g. Mom's cookies">
     </div>
     <div class="form-group">
-      <label>Calories per 100g</label>
+      <label>Unit type</label>
+      <select id="cfUnit">
+        <option value="g">Per 100g (e.g. rice, chicken)</option>
+        <option value="item">Per item (e.g. muffin, egg)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label id="cfCalLabel">Calories per 100g</label>
       <input type="number" id="cfCal" inputmode="decimal" placeholder="e.g. 450">
     </div>
     <div class="modal-actions">
@@ -646,6 +653,7 @@ body {
       <strong id="previewCals">0</strong> kcal
     </div>
     <input type="hidden" id="foodCalsPer100" value="">
+    <input type="hidden" id="foodUnit" value="g">
     <div class="form-group" id="manualCalGroup">
       <label>Or enter calories manually (kcal)</label>
       <input type="number" id="foodCals" inputmode="decimal" placeholder="e.g. 250">
@@ -958,7 +966,7 @@ function render() {
       <div class="entry" onclick="editFood(${i})" style="cursor:pointer">
         <div class="info">
           <div class="name">${esc(f.name)}</div>
-          <div class="detail">${f.weight ? f.weight + 'g' : ''}${f.calPer100 ? ' (' + f.calPer100 + ' kcal/100g)' : ''}</div>
+          <div class="detail">${f.unit === 'item' ? (f.weight ? 'x' + f.weight : '') + (f.calPer100 ? ' (' + f.calPer100 + ' kcal/item)' : '') : (f.weight ? f.weight + 'g' : '') + (f.calPer100 ? ' (' + f.calPer100 + ' kcal/100g)' : '')}</div>
         </div>
         <div class="cals food">${Math.round(f.cals)}</div>
         <button class="delete-btn" onclick="event.stopPropagation();deleteFood(${i})">&times;</button>
@@ -1032,6 +1040,7 @@ foodNameInput.addEventListener('input', function() {
   const allFoods = [...customFoods, ...recipes, ...FOOD_DB];
   const localResults = allFoods.filter(f => f.name.toLowerCase().includes(q)).slice(0, 5);
   showSearchResults(localResults, q);
+
 });
 
 function showSearchResults(localResults, query) {
@@ -1045,9 +1054,9 @@ function showSearchResults(localResults, query) {
 
   if (localResults.length > 0) {
     html += localResults.map(f =>
-      `<div class="search-item" onclick="selectFood('${esc(f.name)}', ${f.cal})">
+      `<div class="search-item" onclick="selectFood('${esc(f.name)}', ${f.cal}, '${f.unit || 'g'}')">
         <span class="s-name">${esc(f.name)}</span>
-        <span class="s-cal">${f.cal} kcal/100g</span>
+        <span class="s-cal">${f.cal} kcal/${f.unit === 'item' ? 'item' : '100g'}</span>
       </div>`
     ).join('');
   }
@@ -1103,13 +1112,18 @@ async function searchOnline(query) {
   }
 }
 
-function selectFood(name, calPer100) {
-  selectedFood = { name, calPer100 };
+function selectFood(name, calPer100, unit) {
+  unit = unit || 'g';
+  selectedFood = { name, calPer100, unit };
   foodNameInput.value = name;
   foodCalsPer100.value = calPer100;
+  document.getElementById('foodUnit').value = unit;
   searchResultsEl.classList.remove('show');
   manualCalGroup.style.display = 'none';
   foodCalsInput.value = '';
+  const weightLabel = document.querySelector('#foodWeight').previousElementSibling;
+  weightLabel.textContent = unit === 'item' ? 'Quantity' : 'Weight (g)';
+  foodWeightInput.placeholder = unit === 'item' ? 'e.g. 2' : 'e.g. 150';
   updateCalPreview();
   foodWeightInput.focus();
 }
@@ -1119,9 +1133,10 @@ foodWeightInput.addEventListener('input', updateCalPreview);
 function updateCalPreview() {
   const weight = parseFloat(foodWeightInput.value) || 0;
   const per100 = parseFloat(foodCalsPer100.value) || 0;
+  const unit = document.getElementById('foodUnit').value;
 
   if (per100 > 0 && weight > 0) {
-    const total = Math.round((per100 / 100) * weight);
+    const total = unit === 'item' ? Math.round(per100 * weight) : Math.round((per100 / 100) * weight);
     previewCalsEl.textContent = total;
     calPreviewEl.style.display = 'block';
     manualCalGroup.style.display = 'none';
@@ -1146,22 +1161,26 @@ function addFood() {
   const name = foodNameInput.value.trim();
   const weight = parseFloat(foodWeightInput.value) || 0;
   const per100 = parseFloat(foodCalsPer100.value) || 0;
+  const unit = document.getElementById('foodUnit').value;
   let cals = 0;
 
   if (per100 > 0 && weight > 0) {
-    cals = Math.round((per100 / 100) * weight);
+    cals = unit === 'item' ? Math.round(per100 * weight) : Math.round((per100 / 100) * weight);
   } else {
     cals = parseFloat(foodCalsInput.value) || 0;
   }
 
   if (!name || !cals) return;
 
+  const entry = { name, weight, cals, calPer100: per100 || null };
+  if (unit === 'item') entry.unit = 'item';
+
   const day = getDayData();
   if (editingFoodIndex >= 0) {
-    day.food[editingFoodIndex] = { name, weight, cals, calPer100: per100 || null };
+    day.food[editingFoodIndex] = entry;
     editingFoodIndex = -1;
   } else {
-    day.food.push({ name, weight, cals, calPer100: per100 || null });
+    day.food.push(entry);
   }
   setDayData(null, day);
   closeModal('modalFood');
@@ -1170,6 +1189,9 @@ function addFood() {
   foodCalsInput.value = '';
   foodCalsPer100.value = '';
   selectedFood = null;
+  document.getElementById('foodUnit').value = 'g';
+  document.querySelector('#foodWeight').previousElementSibling.textContent = 'Weight (g)';
+  foodWeightInput.placeholder = 'e.g. 150';
   calPreviewEl.style.display = 'none';
   manualCalGroup.style.display = 'block';
   document.querySelector('#modalFood h3').textContent = 'Add Food';
@@ -1187,15 +1209,20 @@ function deleteFood(i) {
 function editFood(i) {
   const day = getDayData();
   const f = day.food[i];
+  const unit = f.unit || 'g';
   editingFoodIndex = i;
   foodNameInput.value = f.name;
   foodWeightInput.value = f.weight || '';
   foodCalsPer100.value = f.calPer100 || '';
   foodCalsInput.value = f.cals || '';
-  selectedFood = f.calPer100 ? { name: f.name, calPer100: f.calPer100 } : null;
+  document.getElementById('foodUnit').value = unit;
+  document.querySelector('#foodWeight').previousElementSibling.textContent = unit === 'item' ? 'Quantity' : 'Weight (g)';
+  foodWeightInput.placeholder = unit === 'item' ? 'e.g. 2' : 'e.g. 150';
+  selectedFood = f.calPer100 ? { name: f.name, calPer100: f.calPer100, unit } : null;
   if (f.calPer100 && f.weight) {
+    const total = unit === 'item' ? Math.round(f.calPer100 * f.weight) : Math.round((f.calPer100 / 100) * f.weight);
     calPreviewEl.style.display = 'block';
-    calPreviewEl.textContent = Math.round((f.calPer100 / 100) * f.weight) + ' kcal';
+    calPreviewEl.textContent = total + ' kcal';
     manualCalGroup.style.display = 'none';
   } else {
     calPreviewEl.style.display = 'none';
@@ -1318,6 +1345,10 @@ function exportData() {
 }
 
 // ── Custom Foods ──
+document.getElementById('cfUnit').addEventListener('change', function() {
+  document.getElementById('cfCalLabel').textContent = this.value === 'item' ? 'Calories per item' : 'Calories per 100g';
+});
+
 function getCustomFoods() {
   return JSON.parse(localStorage.getItem('ct_customFoods') || '[]');
 }
@@ -1328,19 +1359,22 @@ function saveCustomFoods(arr) {
 function saveCustomFood() {
   const name = document.getElementById('cfName').value.trim();
   const cal = parseFloat(document.getElementById('cfCal').value) || 0;
+  const unit = document.getElementById('cfUnit').value;
   if (!name || !cal) return;
 
   const foods = getCustomFoods();
   if (editingCustomFoodIndex >= 0) {
-    foods[editingCustomFoodIndex] = { name, cal };
+    foods[editingCustomFoodIndex] = { name, cal, unit };
     editingCustomFoodIndex = -1;
   } else {
-    foods.push({ name, cal });
+    foods.push({ name, cal, unit });
   }
   saveCustomFoods(foods);
   closeModal('modalCustomFood');
   document.getElementById('cfName').value = '';
   document.getElementById('cfCal').value = '';
+  document.getElementById('cfUnit').value = 'g';
+  document.getElementById('cfCalLabel').textContent = 'Calories per 100g';
   renderMyFoods();
 }
 
@@ -1352,6 +1386,8 @@ function editCustomFood(i) {
   editingCustomFoodIndex = i;
   document.getElementById('cfName').value = f.name;
   document.getElementById('cfCal').value = f.cal;
+  document.getElementById('cfUnit').value = f.unit || 'g';
+  document.getElementById('cfCalLabel').textContent = f.unit === 'item' ? 'Calories per item' : 'Calories per 100g';
   document.querySelector('#modalCustomFood h3').textContent = 'Edit Custom Food';
   document.getElementById('modalCustomFood').classList.add('show');
 }
@@ -1373,7 +1409,7 @@ function renderMyFoods() {
       <div class="food-item" onclick="editCustomFood(${i})" style="cursor:pointer">
         <div class="fi-info">
           <div class="fi-name">${esc(f.name)}</div>
-          <div class="fi-detail">${f.cal} kcal / 100g</div>
+          <div class="fi-detail">${f.cal} kcal / ${f.unit === 'item' ? 'item' : '100g'}</div>
         </div>
         <div class="fi-actions">
           <button onclick="event.stopPropagation();deleteCustomFood(${i})">&times;</button>
@@ -1688,11 +1724,16 @@ function closeModal(id) {
   document.getElementById(id).classList.remove('show');
   if (id === 'modalFood') {
     editingFoodIndex = -1;
+    document.getElementById('foodUnit').value = 'g';
+    document.querySelector('#foodWeight').previousElementSibling.textContent = 'Weight (g)';
+    foodWeightInput.placeholder = 'e.g. 150';
     document.querySelector('#modalFood h3').textContent = 'Add Food';
     document.querySelector('#modalFood .btn-save').textContent = 'Add';
   }
   if (id === 'modalCustomFood') {
     editingCustomFoodIndex = -1;
+    document.getElementById('cfUnit').value = 'g';
+    document.getElementById('cfCalLabel').textContent = 'Calories per 100g';
     document.querySelector('#modalCustomFood h3').textContent = 'Add Custom Food';
   }
 }
