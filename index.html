@@ -610,7 +610,14 @@ body {
       </div>
 
       <div class="form-group">
-        <label>Total recipe weight after cooking (g)</label>
+        <label>Unit type</label>
+        <select id="recipeUnit" onchange="updateRecipeUnitLabel()">
+          <option value="g">Per 100g (log by weight)</option>
+          <option value="item">Per item (log by quantity)</option>
+        </select>
+      </div>
+      <div class="form-group" id="recipeTotalWeightGroup">
+        <label id="recipeTotalWeightLabel">Total recipe weight after cooking (g)</label>
         <input type="number" id="recipeTotalWeight" inputmode="decimal" placeholder="e.g. 800">
       </div>
     </div>
@@ -1036,7 +1043,7 @@ foodNameInput.addEventListener('input', function() {
 
   // Search custom foods, recipes, then built-in DB
   const customFoods = getCustomFoods();
-  const recipes = getRecipes().map(r => ({ name: r.name + ' (recipe)', cal: r.calPer100 }));
+  const recipes = getRecipes().map(r => ({ name: r.name + ' (recipe)', cal: r.unit === 'item' ? r.calPerItem : r.calPer100, unit: r.unit || 'g' }));
   const allFoods = [...customFoods, ...recipes, ...FOOD_DB];
   const localResults = allFoods.filter(f => f.name.toLowerCase().includes(q)).slice(0, 5);
   showSearchResults(localResults, q);
@@ -1515,26 +1522,42 @@ function addIngredient() {
   renderIngredientList();
 }
 
+function updateRecipeUnitLabel() {
+  const unit = document.getElementById('recipeUnit').value;
+  document.getElementById('recipeTotalWeightLabel').textContent = unit === 'item' ? 'Number of items this recipe makes' : 'Total recipe weight after cooking (g)';
+  document.getElementById('recipeTotalWeight').placeholder = unit === 'item' ? 'e.g. 12' : 'e.g. 800';
+}
+
 function saveRecipe() {
   const name = document.getElementById('recipeName').value.trim();
   const totalWeight = parseFloat(document.getElementById('recipeTotalWeight').value) || 0;
+  const unit = document.getElementById('recipeUnit').value;
   if (!name || recipeIngredients.length === 0 || !totalWeight) return;
 
   const totalCals = recipeIngredients.reduce((s, ing) => s + ing.cals, 0);
-  const calPer100 = Math.round((totalCals / totalWeight) * 100);
-
-  const recipes = getRecipes();
-  recipes.push({
+  const recipe = {
     name,
     ingredients: [...recipeIngredients],
     totalWeight,
     totalCals: Math.round(totalCals),
-    calPer100
-  });
+  };
+
+  if (unit === 'item') {
+    recipe.unit = 'item';
+    recipe.calPerItem = Math.round(totalCals / totalWeight);
+    recipe.calPer100 = recipe.calPerItem; // used as cal value in search
+  } else {
+    recipe.calPer100 = Math.round((totalCals / totalWeight) * 100);
+  }
+
+  const recipes = getRecipes();
+  recipes.push(recipe);
   saveRecipes(recipes);
   closeModal('modalRecipe');
   document.getElementById('recipeName').value = '';
   document.getElementById('recipeTotalWeight').value = '';
+  document.getElementById('recipeUnit').value = 'g';
+  updateRecipeUnitLabel();
   recipeIngredients = [];
   renderIngredientList();
   renderRecipeList();
@@ -1557,7 +1580,7 @@ function renderRecipeList() {
       <div class="food-item">
         <div class="fi-info">
           <div class="fi-name">${esc(r.name)}</div>
-          <div class="fi-detail">${r.calPer100} kcal/100g | ${r.ingredients.length} ingredients | ${r.totalWeight}g total</div>
+          <div class="fi-detail">${r.unit === 'item' ? r.calPerItem + ' kcal/item | ' + r.totalWeight + ' items' : r.calPer100 + ' kcal/100g | ' + r.totalWeight + 'g total'} | ${r.ingredients.length} ingredients</div>
         </div>
         <div class="fi-actions">
           <button onclick="deleteRecipe(${i})">&times;</button>
@@ -1735,6 +1758,10 @@ function closeModal(id) {
     document.getElementById('cfUnit').value = 'g';
     document.getElementById('cfCalLabel').textContent = 'Calories per 100g';
     document.querySelector('#modalCustomFood h3').textContent = 'Add Custom Food';
+  }
+  if (id === 'modalRecipe') {
+    document.getElementById('recipeUnit').value = 'g';
+    updateRecipeUnitLabel();
   }
 }
 
