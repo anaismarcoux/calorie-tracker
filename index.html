@@ -1331,12 +1331,29 @@ function saveCustomFood() {
   if (!name || !cal) return;
 
   const foods = getCustomFoods();
-  foods.push({ name, cal });
+  if (editingCustomFoodIndex >= 0) {
+    foods[editingCustomFoodIndex] = { name, cal };
+    editingCustomFoodIndex = -1;
+  } else {
+    foods.push({ name, cal });
+  }
   saveCustomFoods(foods);
   closeModal('modalCustomFood');
   document.getElementById('cfName').value = '';
   document.getElementById('cfCal').value = '';
   renderMyFoods();
+}
+
+let editingCustomFoodIndex = -1;
+
+function editCustomFood(i) {
+  const foods = getCustomFoods();
+  const f = foods[i];
+  editingCustomFoodIndex = i;
+  document.getElementById('cfName').value = f.name;
+  document.getElementById('cfCal').value = f.cal;
+  document.querySelector('#modalCustomFood h3').textContent = 'Edit Custom Food';
+  document.getElementById('modalCustomFood').classList.add('show');
 }
 
 function deleteCustomFood(i) {
@@ -1353,13 +1370,13 @@ function renderMyFoods() {
     list.innerHTML = '<div class="empty">No custom foods yet. Tap + Add to create one.</div>';
   } else {
     list.innerHTML = foods.map((f, i) => `
-      <div class="food-item">
+      <div class="food-item" onclick="editCustomFood(${i})" style="cursor:pointer">
         <div class="fi-info">
           <div class="fi-name">${esc(f.name)}</div>
           <div class="fi-detail">${f.cal} kcal / 100g</div>
         </div>
         <div class="fi-actions">
-          <button onclick="deleteCustomFood(${i})">&times;</button>
+          <button onclick="event.stopPropagation();deleteCustomFood(${i})">&times;</button>
         </div>
       </div>
     `).join('');
@@ -1673,6 +1690,10 @@ function closeModal(id) {
     editingFoodIndex = -1;
     document.querySelector('#modalFood h3').textContent = 'Add Food';
     document.querySelector('#modalFood .btn-save').textContent = 'Add';
+  }
+  if (id === 'modalCustomFood') {
+    editingCustomFoodIndex = -1;
+    document.querySelector('#modalCustomFood h3').textContent = 'Add Custom Food';
   }
 }
 
