@@ -635,8 +635,10 @@ body {
     <div class="tab-bar" style="margin-bottom:12px;">
       <button class="active" id="wTabDaily" onclick="switchWeightTab('daily')">Daily</button>
       <button id="wTabWeekly" onclick="switchWeightTab('weekly')">Weekly Avg</button>
+      <button id="wTabGraph" onclick="switchWeightTab('graph')">Graph</button>
     </div>
     <div id="weightLogList" style="flex:1;overflow-y:auto;"></div>
+    <div id="weightGraph" style="display:none;flex:1;overflow:hidden;"></div>
     <div class="modal-actions" style="margin-top:12px;">
       <button class="btn-cancel" onclick="closeModal('modalWeightLog')" style="flex:1">Close</button>
     </div>
@@ -1604,7 +1606,90 @@ function switchWeightTab(tab) {
   weightTab = tab;
   document.getElementById('wTabDaily').classList.toggle('active', tab === 'daily');
   document.getElementById('wTabWeekly').classList.toggle('active', tab === 'weekly');
-  renderWeightLog();
+  document.getElementById('wTabGraph').classList.toggle('active', tab === 'graph');
+  document.getElementById('weightLogList').style.display = tab === 'graph' ? 'none' : '';
+  document.getElementById('weightGraph').style.display = tab === 'graph' ? '' : 'none';
+  if (tab === 'graph') renderWeightGraph();
+  else renderWeightLog();
+}
+
+function renderWeightGraph() {
+  const isImperial = settings.units === 'imperial';
+  const unit = isImperial ? 'lbs' : 'kg';
+  const entries = getWeightEntries();
+  const container = document.getElementById('weightGraph');
+
+  if (entries.length < 2) {
+    container.innerHTML = '<div class="empty">Not enough data to show a graph yet</div>';
+    return;
+  }
+
+  const W = container.clientWidth || 320;
+  const H = 220;
+  const padL = 44, padR = 16, padT = 16, padB = 36;
+  const chartW = W - padL - padR;
+  const chartH = H - padT - padB;
+
+  const vals = entries.map(e => e.weightDisplay);
+  const minV = Math.min(...vals);
+  const maxV = Math.max(...vals);
+  const range = maxV - minV || 1;
+  const yMin = parseFloat((minV - range * 0.1).toFixed(1));
+  const yMax = parseFloat((maxV + range * 0.1).toFixed(1));
+  const yRange = yMax - yMin;
+
+  const xOf = i => padL + (i / (entries.length - 1)) * chartW;
+  const yOf = v => padT + chartH - ((v - yMin) / yRange) * chartH;
+
+  // Y grid lines & labels (4 ticks)
+  let gridLines = '', yLabels = '';
+  for (let t = 0; t <= 4; t++) {
+    const v = yMin + (yRange * t / 4);
+    const y = yOf(v);
+    gridLines += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="#e8e8e8" stroke-width="1"/>`;
+    yLabels += `<text x="${padL - 6}" y="${y + 4}" text-anchor="end" font-size="10" fill="#888">${v.toFixed(1)}</text>`;
+  }
+
+  // X labels (up to 6 evenly spaced)
+  let xLabels = '';
+  const step = Math.ceil(entries.length / 6);
+  entries.forEach((e, i) => {
+    if (i % step === 0 || i === entries.length - 1) {
+      const x = xOf(i);
+      const d = e.date.slice(5); // MM-DD
+      xLabels += `<text x="${x}" y="${H - 4}" text-anchor="middle" font-size="10" fill="#888">${d}</text>`;
+    }
+  });
+
+  // Line path
+  const points = entries.map((e, i) => `${xOf(i)},${yOf(e.weightDisplay)}`);
+  const linePath = `M${points.join('L')}`;
+
+  // Filled area under line
+  const areaPath = `M${padL},${yOf(yMin)} L${points.join('L')} L${xOf(entries.length - 1)},${yOf(yMin)} Z`;
+
+  // Dots
+  const dots = entries.map((e, i) => {
+    const x = xOf(i); const y = yOf(e.weightDisplay);
+    return `<circle cx="${x}" cy="${y}" r="3" fill="#1a1a1a"/>`;
+  }).join('');
+
+  container.innerHTML = `
+    <svg width="${W}" height="${H}" style="display:block;">
+      <defs>
+        <linearGradient id="wGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#1a1a1a" stop-opacity="0.12"/>
+          <stop offset="100%" stop-color="#1a1a1a" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      ${gridLines}
+      ${yLabels}
+      ${xLabels}
+      <path d="${areaPath}" fill="url(#wGrad)"/>
+      <path d="${linePath}" fill="none" stroke="#1a1a1a" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      ${dots}
+      <text x="${W/2}" y="${H - 4}" text-anchor="middle" font-size="10" fill="#aaa" dy="0">${unit}</text>
+    </svg>`;
 }
 
 function getWeightEntries() {
