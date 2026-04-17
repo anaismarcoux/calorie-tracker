@@ -340,6 +340,18 @@ body {
 
 .search-loading { padding: 10px 12px; color: var(--text2); font-size: 13px; text-align: center; }
 
+.freq-chip {
+  background: var(--bg);
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 500;
+}
+.freq-chip:active { background: #ececec; }
+
 .cal-preview {
   background: var(--bg);
   border-radius: 12px;
@@ -649,6 +661,10 @@ body {
 <div class="modal-overlay" id="modalFood">
   <div class="modal">
     <h3>Add Food</h3>
+    <div id="frequentFoodsWrap" style="margin-bottom:14px;display:none;">
+      <label style="font-size:13px;color:var(--text2);display:block;margin-bottom:6px;">Frequent</label>
+      <div id="frequentFoods" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+    </div>
     <div class="form-group search-wrap">
       <label>Search food</label>
       <input type="text" id="foodName" placeholder="Type to search... e.g. chicken" autocomplete="off">
@@ -1164,6 +1180,32 @@ document.addEventListener('click', function(e) {
     searchResultsEl.classList.remove('show');
   }
 });
+
+// ── Frequent Foods ──
+function getFrequentFoods(limit) {
+  const all = getData('days');
+  const counts = {};
+  Object.values(all).forEach(d => {
+    (d.food || []).forEach(f => {
+      if (!f.calPer100) return; // skip manual-only entries
+      const key = f.name + '|' + f.calPer100 + '|' + (f.unit || 'g');
+      if (!counts[key]) counts[key] = { name: f.name, calPer100: f.calPer100, unit: f.unit || 'g', count: 0 };
+      counts[key].count++;
+    });
+  });
+  return Object.values(counts).sort((a, b) => b.count - a.count).slice(0, limit);
+}
+
+function renderFrequentFoods() {
+  const wrap = document.getElementById('frequentFoodsWrap');
+  const container = document.getElementById('frequentFoods');
+  const freq = getFrequentFoods(7);
+  if (freq.length === 0) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  container.innerHTML = freq.map(f =>
+    `<button type="button" class="freq-chip" onclick="selectFood('${esc(f.name).replace(/'/g, "\\'")}', ${f.calPer100}, '${f.unit}')">${esc(f.name)}</button>`
+  ).join('');
+}
 
 // ── Food Add/Delete ──
 function addFood() {
@@ -1808,7 +1850,7 @@ function showPage(id, btn) {
 
 // ── Modal ──
 function openModal(type) {
-  if (type === 'food') document.getElementById('modalFood').classList.add('show');
+  if (type === 'food') { renderFrequentFoods(); document.getElementById('modalFood').classList.add('show'); }
   else if (type === 'exercise') document.getElementById('modalExercise').classList.add('show');
   else if (type === 'measurements') {
     updateUnitLabels();
